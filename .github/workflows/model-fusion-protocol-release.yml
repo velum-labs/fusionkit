@@ -14,7 +14,6 @@ on:
 permissions:
   contents: write
   packages: write
-  id-token: write
 
 env:
   CANONICAL_REPOSITORY: velum-labs/fusionkit
@@ -105,11 +104,11 @@ jobs:
           registry-url: "https://npm.pkg.github.com"
           scope: "@velum"
 
-      - name: Publish to GitHub Packages with provenance
+      - name: Publish to private GitHub Packages
         working-directory: ${{ env.CONTRACT_DIR }}
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm publish --provenance --access restricted
+        run: npm publish --access restricted
 
   publish-python:
     name: Publish Python protocol package
