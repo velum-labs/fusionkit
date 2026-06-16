@@ -21,6 +21,11 @@ uv run pytest
 uv run ruff check .
 ```
 
+## Project Notes
+
+- [Model fusion learnings](docs/model-fusion-learnings.md): durable architecture notes
+  from the contract, native run, tool, provider, and benchmark implementation work.
+
 ## Example
 
 Start one or more local MLX servers, then point FusionKit at them:
