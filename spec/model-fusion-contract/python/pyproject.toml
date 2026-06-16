@@ -9,7 +9,9 @@ description = "Model fusion JSON Schema records and OpenAPI 3.1 HTTP contracts."
 requires-python = ">=3.11"
 readme = "README.md"
 license = { text = "Proprietary" }
-dependencies = []
+dependencies = [
+  "jsonschema>=4.26.0",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/velum_model_fusion_protocol"]

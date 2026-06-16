@@ -53,6 +53,14 @@ jobs:
           uv run python scripts/validate_contract_fixtures.py
           uv run python scripts/validate_protocol_package.py
 
+      - name: Install protocol package generator dependencies
+        working-directory: ${{ env.CONTRACT_DIR }}
+        run: npm ci
+
+      - name: Check generated protocol SDK drift
+        working-directory: ${{ env.CONTRACT_DIR }}
+        run: npm run check:generated
+
       - name: Run tests and static checks
         run: |
           uv run pytest
@@ -78,6 +86,8 @@ jobs:
             ${{ env.CONTRACT_DIR }}/package.json
             ${{ env.CONTRACT_DIR }}/protocol-package.json
             ${{ env.CONTRACT_DIR }}/openapi/model-fusion.v1.openapi.json
+            ${{ env.CONTRACT_DIR }}/gen/**/*
+            ${{ env.PYTHON_PROTOCOL_DIR }}/src/velum_model_fusion_protocol/generated/**/*
 
   publish-npm:
     name: Publish npm protocol package

@@ -1,6 +1,6 @@
-from __future__ import annotations
-
+import importlib
 import importlib.util
+import json
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -30,6 +30,33 @@ def test_protocol_package_metadata_and_idl_are_drift_checked() -> None:
         "/v1/mlx/model-calls",
         "/v1/benchmarks/join-execution",
     )
+
+
+def test_generated_python_record_validator_accepts_fixture() -> None:
+    repo_root = Path(__file__).resolve().parents[1]
+    protocol_src = (
+        repo_root
+        / "spec"
+        / "model-fusion-contract"
+        / "python"
+        / "src"
+    )
+    if str(protocol_src) not in sys.path:
+        sys.path.insert(0, str(protocol_src))
+
+    generated = importlib.import_module("velum_model_fusion_protocol.generated")
+
+    fixture_path = (
+        repo_root
+        / "spec"
+        / "model-fusion-contract"
+        / "fixture"
+        / "harness-run-result.v1"
+        / "minimal.json"
+    )
+    fixture = json.loads(fixture_path.read_text(encoding="utf-8"))
+
+    generated.validate_record("harness-run-result.v1", fixture)
 
 
 def _load_validator_module() -> ModuleType:

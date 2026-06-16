@@ -111,6 +111,8 @@ Run:
 ```bash
 uv run python scripts/validate_contract_fixtures.py
 uv run python scripts/validate_protocol_package.py
+npm --prefix spec/model-fusion-contract ci
+npm --prefix spec/model-fusion-contract run check:generated
 uv run pytest
 uv run ruff check .
 ```
@@ -131,6 +133,8 @@ The protocol package validator checks:
 - required HTTP/service boundaries exist in OpenAPI 3.1;
 - OpenAPI references JSON Schema records rather than copying durable record fields;
 - protobuf/Buf is not part of the required v1 protocol path.
+- generated OpenAPI client/types and JSON Schema validator indexes are committed and
+  reproducible.
 
 ## Release
 

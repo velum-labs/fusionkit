@@ -15,6 +15,7 @@ PROTOCOL_PACKAGE_JSON = CONTRACT_ROOT / "protocol-package.json"
 OPENAPI_FILE = CONTRACT_ROOT / "openapi" / "model-fusion.v1.openapi.json"
 PYTHON_PACKAGE = CONTRACT_ROOT / "python" / "pyproject.toml"
 PYTHON_BUILD_SCRIPT = Path(__file__).resolve().parent / "build_protocol_python_package.py"
+CODEGEN_SCRIPT = Path(__file__).resolve().parent / "generate_protocol_codegen.py"
 
 REQUIRED_SERVICE_PATHS = {
     "HarnessExecutorService": ("/v1/harness/execute-coding-task",),
@@ -34,6 +35,11 @@ REQUIRED_SCHEMA_REFS = (
     "../schema/model-endpoint.v1.schema.json",
 )
 PRIVATE_PYTHON_INDEXES = ("Cloudsmith", "AWS CodeArtifact", "Gemfury")
+REQUIRED_TS_CODEGEN_DEPS = (
+    "ajv",
+    "openapi-fetch",
+    "openapi-typescript",
+)
 
 
 @dataclass(frozen=True)
@@ -56,8 +62,10 @@ def validate_protocol_package(contract_root: Path = CONTRACT_ROOT) -> ProtocolPa
     _validate_protocol_package_json(protocol_package, contract_root)
     _validate_python_package(python_package, protocol_package, package_json, openapi)
     services, paths = _validate_openapi(openapi, contract_root, package_json)
+    _validate_generated_outputs(contract_root)
     _validate_no_v1_proto_requirements(contract_root)
     _require_file(PYTHON_BUILD_SCRIPT)
+    _require_file(CODEGEN_SCRIPT)
 
     return ProtocolPackageSummary(
         schema_bundle_hash=protocol_package["schema_bundle_hash"],
@@ -127,7 +135,7 @@ def _validate_package_json(package_json: dict[str, Any]) -> None:
     files = package_json.get("files")
     if not isinstance(files, list):
         raise ValueError("package.json must include a files list")
-    for required_file in ("schema", "openapi", "protocol-package.json"):
+    for required_file in ("schema", "openapi", "gen", "protocol-package.json"):
         if required_file not in files:
             raise ValueError(f"package.json files must include {required_file}")
     scripts = package_json.get("scripts")
@@ -139,6 +147,14 @@ def _validate_package_json(package_json: dict[str, Any]) -> None:
         raise ValueError("package.json must expose generate:typescript")
     if "generate:python" not in scripts:
         raise ValueError("package.json must expose generate:python")
+    if "check:generated" not in scripts:
+        raise ValueError("package.json must expose check:generated")
+    dev_dependencies = package_json.get("devDependencies")
+    if not isinstance(dev_dependencies, dict):
+        raise ValueError("package.json must pin TypeScript generator dependencies")
+    for dependency in REQUIRED_TS_CODEGEN_DEPS:
+        if dependency not in dev_dependencies:
+            raise ValueError(f"package.json must include {dependency}")
 
 
 def _validate_protocol_package_json(
@@ -170,6 +186,18 @@ def _validate_protocol_package_json(
         raise ValueError("protocol-package.json must include protobuf future-use config")
     if protobuf_config.get("required_for_v1") is not False:
         raise ValueError("protobuf must not be required for the v1 service path")
+    codegen_config = protocol_package.get("codegen")
+    if not isinstance(codegen_config, dict):
+        raise ValueError("protocol-package.json must include codegen config")
+    if codegen_config.get("drift_check") != "npm run check:generated":
+        raise ValueError("protocol-package.json must document generated drift check")
+    for key in ("openapi_service_clients", "json_schema_record_validators"):
+        paths = codegen_config.get(key)
+        if not isinstance(paths, list) or not paths:
+            raise ValueError(f"protocol-package.json codegen.{key} must list outputs")
+        for output_path in paths:
+            if not isinstance(output_path, str) or not (contract_root / output_path).exists():
+                raise ValueError(f"Generated codegen output is missing: {output_path}")
     python_config = protocol_package.get("python")
     if not isinstance(python_config, dict):
         raise ValueError("protocol-package.json must include Python package config")
@@ -254,6 +282,35 @@ def _validate_openapi(
         if schema_ref not in encoded:
             raise ValueError(f"OpenAPI contract must reference {schema_ref}")
     return services, set(paths)
+
+
+def _validate_generated_outputs(contract_root: Path) -> None:
+    required_outputs = (
+        contract_root / "gen" / "typescript" / "openapi.d.ts",
+        contract_root / "gen" / "typescript" / "client.ts",
+        contract_root / "gen" / "typescript" / "record-validators.ts",
+        contract_root
+        / "python"
+        / "src"
+        / "velum_model_fusion_protocol"
+        / "generated"
+        / "__init__.py",
+        contract_root
+        / "python"
+        / "src"
+        / "velum_model_fusion_protocol"
+        / "generated"
+        / "openapi_client.py",
+        contract_root
+        / "python"
+        / "src"
+        / "velum_model_fusion_protocol"
+        / "generated"
+        / "record_validators.py",
+    )
+    missing = [str(path) for path in required_outputs if not path.exists()]
+    if missing:
+        raise ValueError("Generated protocol outputs are missing: " + ", ".join(missing))
 
 
 def _validate_no_v1_proto_requirements(contract_root: Path) -> None:

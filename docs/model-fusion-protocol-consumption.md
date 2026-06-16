@@ -32,13 +32,17 @@ The initial IDL prepares these minimum service seams:
 TypeScript consumers should target the npm package name
 `@velum/model-fusion-protocol`, published to GitHub Packages while the repo remains
 private. The package should contain JSON Schemas, OpenAPI 3.1, and generated
-TypeScript SDK/types/validators once generation is wired in CI.
+TypeScript SDK/types/validators. Service clients and request/response types are
+generated from OpenAPI with `openapi-typescript` and `openapi-fetch`; durable record
+validators are generated from the JSON Schema bundle with Ajv.
 
 Python consumers need a private PyPI-compatible path. Prefer Cloudsmith, AWS
 CodeArtifact, or Gemfury for private wheels. Short term, publish wheels to GitHub
 Releases or pin `uv` git dependencies by commit. GitHub Packages is not enough for
 private Python package consumption. Python repos should consume generated protocol
 bindings from that package path rather than copying Pydantic or JSON Schema shapes.
+The Python package exposes generated OpenAPI operation metadata/client scaffolding
+and JSON Schema validators generated from the durable record bundle.
 
 Release automation and required secrets are documented in
 `docs/model-fusion-protocol-release.md`.
@@ -57,15 +61,14 @@ When generated SDK output is committed or published from CI, add a generation dr
 check such as:
 
 ```bash
-npm --prefix spec/model-fusion-contract run generate:typescript
-npm --prefix spec/model-fusion-contract run generate:python
-git diff --exit-code spec/model-fusion-contract/gen
+npm --prefix spec/model-fusion-contract ci
+npm --prefix spec/model-fusion-contract run check:generated
 ```
 
 The first two checks ensure JSON Schema fixture hashes, package metadata, required
 service paths, OpenAPI 3.1 versioning, and JSON Schema references do not drift. The
-generated-code diff check should be enabled when generated TS/Python bindings are
-committed or published from CI.
+generated-code check regenerates OpenAPI clients/types and JSON Schema validators,
+then fails if the committed outputs drift.
 
 ## Correction from earlier proto-first direction
 
@@ -75,10 +78,12 @@ This PR removes the proto/Buf v1 path and keeps protobuf as future-facing only.
 
 ## Follow-up outside this PR
 
-- HandoffKit should replace any copied protocol models with generated
-  `HarnessExecutorService` bindings and JSON Schema validation from the package.
-- CursorKit should emit `CursorHarnessService` records through generated bindings
-  and keep Cursor-specific persisted records validated by JSON Schema.
+- HandoffKit should replace any copied protocol models with generated OpenAPI
+  `HarnessExecutorService` bindings and generated JSON Schema validators from the
+  package.
+- CursorKit should emit `CursorHarnessService` records through generated OpenAPI
+  bindings and keep Cursor-specific persisted records validated by generated JSON
+  Schema validators.
 - MLX provider integrations should consume `MlxProviderService` bindings for
   provider metadata instead of cloning FusionKit types.
 - Release automation should publish the npm package and a private Python wheel from

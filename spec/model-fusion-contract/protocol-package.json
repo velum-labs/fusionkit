@@ -22,6 +22,18 @@
       "generated TypeScript SDK/types/validators when CI generation is enabled"
     ]
   },
+  "codegen": {
+    "openapi_service_clients": [
+      "gen/typescript/openapi.d.ts",
+      "gen/typescript/client.ts",
+      "python/src/velum_model_fusion_protocol/generated/openapi_client.py"
+    ],
+    "json_schema_record_validators": [
+      "gen/typescript/record-validators.ts",
+      "python/src/velum_model_fusion_protocol/generated/record_validators.py"
+    ],
+    "drift_check": "npm run check:generated"
+  },
   "python": {
     "package": "velum-model-fusion-protocol",
     "preferred_private_indexes": [

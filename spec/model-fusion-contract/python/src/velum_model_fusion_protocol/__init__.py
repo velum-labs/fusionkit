@@ -12,11 +12,25 @@ def package_root() -> Path:
 
 
 def schema_dir() -> Path:
-    return package_root() / "schema"
+    bundled_schema_dir = package_root() / "schema"
+    if bundled_schema_dir.exists():
+        return bundled_schema_dir
+    for parent in package_root().parents:
+        schema_path = parent / "schema"
+        if schema_path.exists():
+            return schema_path
+    return bundled_schema_dir
 
 
 def openapi_dir() -> Path:
-    return package_root() / "openapi"
+    bundled_openapi_dir = package_root() / "openapi"
+    if bundled_openapi_dir.exists():
+        return bundled_openapi_dir
+    for parent in package_root().parents:
+        openapi_path = parent / "openapi"
+        if openapi_path.exists():
+            return openapi_path
+    return bundled_openapi_dir
 
 
 def openapi_path() -> Path:
