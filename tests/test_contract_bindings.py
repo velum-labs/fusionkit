@@ -8,9 +8,12 @@ from fusionkit_core.contracts import (
     CONTRACT_MODEL_REGISTRY,
     ArtifactRefV1,
     BenchmarkTaskRecordV1,
+    EnsembleReceiptV1,
     FusionRecordV1,
     FusionRunRequestV1,
     FusionRunState,
+    HarnessCandidateRecordV1,
+    HarnessRunResultV1,
     JudgeSynthesisRecordV1,
     ModelCallRecordV1,
     ModelEndpointV1,
@@ -32,11 +35,14 @@ FUSIONKIT_CONTRACT_SCHEMAS: dict[SchemaName, type] = {
     "model-call-record.v1": ModelCallRecordV1,
     "fusion-run-request.v1": FusionRunRequestV1,
     "fusion-record.v1": FusionRecordV1,
+    "harness-run-result.v1": HarnessRunResultV1,
+    "harness-candidate-record.v1": HarnessCandidateRecordV1,
     "judge-synthesis-record.v1": JudgeSynthesisRecordV1,
     "benchmark-task-record.v1": BenchmarkTaskRecordV1,
     "artifact-ref.v1": ArtifactRefV1,
     "tool-call-plan.v1": ToolCallPlanV1,
     "tool-execution-record.v1": ToolExecutionRecordV1,
+    "ensemble-receipt.v1": EnsembleReceiptV1,
 }
 
 
@@ -129,6 +135,15 @@ def test_downstream_readiness_fields_are_typed() -> None:
     synthesis_record = JudgeSynthesisRecordV1.model_validate(
         _load_fixture("judge-synthesis-record.v1", "realistic.json")
     )
+    harness_result = HarnessRunResultV1.model_validate(
+        _load_fixture("harness-run-result.v1", "realistic.json")
+    )
+    harness_candidate = HarnessCandidateRecordV1.model_validate(
+        _load_fixture("harness-candidate-record.v1", "realistic.json")
+    )
+    receipt = EnsembleReceiptV1.model_validate(
+        _load_fixture("ensemble-receipt.v1", "realistic.json")
+    )
     benchmark_task = BenchmarkTaskRecordV1.model_validate(
         _load_fixture("benchmark-task-record.v1", "realistic.json")
     )
@@ -140,6 +155,9 @@ def test_downstream_readiness_fields_are_typed() -> None:
     assert fusion_record.artifacts is not None
     assert tool_plan.side_effects == "read_only"
     assert synthesis_record.synthesis_id == "synthesis_panel_001"
+    assert harness_result.harness_kind == "cursor"
+    assert harness_candidate.model_call_id == "call_panel_fast_001"
+    assert receipt.run_id == "harness_result_cursor_001"
     assert benchmark_task.scorer.kind == "record_join"
     assert endpoint.capabilities["tool_calls"] == "unsupported"
 
