@@ -1,0 +1,88 @@
+syntax = "proto3";
+
+package velum.model_fusion.v1;
+
+// Service-boundary IDL for model-fusion runtimes.
+//
+// Persisted audit records remain JSON Schema documents under ../schema. Transport
+// services pass those records inside JsonContractRecord envelopes to avoid
+// duplicating record shapes in downstream repos.
+
+message JsonContractRecord {
+  string schema = 1;
+  string schema_version = 2;
+  string schema_bundle_hash = 3;
+  bytes json = 4;
+}
+
+message BenchmarkTaskEnvelope {
+  JsonContractRecord benchmark_task_record = 1;
+  string manifest_path = 2;
+  string manifest_hash = 3;
+}
+
+message BenchmarkExecutionEnvelope {
+  BenchmarkTaskEnvelope task = 1;
+  repeated JsonContractRecord records = 2;
+  string executor_id = 3;
+}
+
+message ExecuteCodingTaskRequest {
+  BenchmarkTaskEnvelope task = 1;
+  repeated JsonContractRecord requested_model_endpoints = 2;
+}
+
+message ExecuteCodingTaskResponse {
+  BenchmarkExecutionEnvelope execution = 1;
+}
+
+message NormalizeCursorRunRequest {
+  JsonContractRecord cursor_run_result = 1;
+}
+
+message NormalizeCursorRunResponse {
+  JsonContractRecord harness_run_result = 1;
+  repeated JsonContractRecord records = 2;
+}
+
+message DescribeModelEndpointRequest {
+  string endpoint_id = 1;
+}
+
+message DescribeModelEndpointResponse {
+  JsonContractRecord model_endpoint = 1;
+}
+
+message RecordModelCallMetadataRequest {
+  JsonContractRecord model_call_record = 1;
+}
+
+message RecordModelCallMetadataResponse {
+  JsonContractRecord model_call_record = 1;
+}
+
+message JoinExecutionRecordsRequest {
+  BenchmarkExecutionEnvelope execution = 1;
+}
+
+message JoinExecutionRecordsResponse {
+  repeated JsonContractRecord joined_records = 1;
+}
+
+service HarnessExecutorService {
+  rpc ExecuteCodingTask(ExecuteCodingTaskRequest) returns (ExecuteCodingTaskResponse);
+}
+
+service CursorHarnessService {
+  rpc NormalizeCursorRun(NormalizeCursorRunRequest) returns (NormalizeCursorRunResponse);
+}
+
+service MlxProviderService {
+  rpc DescribeModelEndpoint(DescribeModelEndpointRequest) returns (DescribeModelEndpointResponse);
+  rpc RecordModelCallMetadata(RecordModelCallMetadataRequest)
+      returns (RecordModelCallMetadataResponse);
+}
+
+service BenchmarkJoinService {
+  rpc JoinExecutionRecords(JoinExecutionRecordsRequest) returns (JoinExecutionRecordsResponse);
+}

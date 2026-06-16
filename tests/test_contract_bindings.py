@@ -69,6 +69,17 @@ def test_contract_model_registry_covers_downstream_fusionkit_tickets() -> None:
     assert CONTRACT_MODEL_REGISTRY == FUSIONKIT_CONTRACT_SCHEMAS
 
 
+def test_contract_model_registry_entries_are_backed_by_origin_schemas() -> None:
+    schema_titles = _schema_titles()
+
+    assert set(CONTRACT_MODEL_REGISTRY).issubset(schema_titles)
+    assert {
+        "harness-run-result.v1",
+        "harness-candidate-record.v1",
+        "ensemble-receipt.v1",
+    }.issubset(CONTRACT_MODEL_REGISTRY)
+
+
 def test_contract_metadata_helpers_match_fixture_contract() -> None:
     metadata = contract_metadata(
         "fusion-record.v1",
@@ -168,3 +179,14 @@ def _load_fixture(schema_name: SchemaName, fixture_name: str) -> dict[str, Any]:
     if not isinstance(data, dict):
         raise TypeError(f"Fixture {schema_name}/{fixture_name} must be a JSON object")
     return data
+
+
+def _schema_titles() -> set[str]:
+    titles = set()
+    for schema_path in SCHEMA_ROOT.glob("*.schema.json"):
+        with schema_path.open(encoding="utf-8") as handle:
+            schema = json.load(handle)
+        title = schema.get("title")
+        if title != "Model Fusion Contract Common Definitions":
+            titles.add(title)
+    return titles

@@ -1,0 +1,35 @@
+{
+  "package_name": "@velum/model-fusion-protocol",
+  "schema_bundle_hash": "sha256:75792f89c091b6ab4fd317a15fb03fd73438563dceff5ccf9f5d7c752dbf35f3",
+  "json_schema_format": "persisted-record-audit-format",
+  "protobuf_format": "service-transport-envelope-format",
+  "buf_module": "buf.build/velum/model-fusion-protocol",
+  "typescript": {
+    "package": "@velum/model-fusion-protocol",
+    "registry": "https://npm.pkg.github.com",
+    "contents": [
+      "JSON Schema bundle",
+      "Buf/protobuf service envelopes",
+      "generated TypeScript bindings when CI generation is enabled"
+    ]
+  },
+  "python": {
+    "package": "velum-model-fusion-protocol",
+    "preferred_private_indexes": [
+      "Cloudsmith",
+      "AWS CodeArtifact",
+      "Gemfury"
+    ],
+    "short_term_paths": [
+      "GitHub Releases wheels",
+      "uv git dependencies pinned by commit"
+    ],
+    "note": "GitHub Packages is not a private PyPI replacement for Python consumers."
+  },
+  "required_services": [
+    "HarnessExecutorService",
+    "CursorHarnessService",
+    "MlxProviderService",
+    "BenchmarkJoinService"
+  ]
+}

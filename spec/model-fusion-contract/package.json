@@ -1,0 +1,17 @@
+{
+  "name": "@velum/model-fusion-protocol",
+  "version": "0.1.0",
+  "description": "Model fusion JSON Schema contracts and protobuf service envelopes.",
+  "private": false,
+  "files": [
+    "schema",
+    "proto",
+    "buf.yaml",
+    "buf.gen.yaml",
+    "protocol-package.json",
+    "README.md"
+  ],
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  }
+}
