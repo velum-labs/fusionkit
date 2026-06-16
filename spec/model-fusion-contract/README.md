@@ -3,9 +3,9 @@
 This directory is the MF-00 contract and IDL seed for model-fusion records.
 FusionKit is the origin for now; do not create or consume a separate protocol repo
 unless the governance and release process justify it. JSON Schema remains the
-persisted record and audit source of truth. Protobuf/Buf definitions prepare
-service-boundary envelopes that carry JSON contract records instead of duplicating
-their persisted shapes.
+persisted record and audit source of truth. Buf/protobuf is the source of truth for
+service and SDK boundaries. OpenAPI, when needed, must be generated from the
+protobuf IDL instead of hand-authored.
 
 ## Layout
 
@@ -129,5 +129,6 @@ The protocol package validator checks:
 - npm metadata targets `@velum/model-fusion-protocol` on GitHub Packages;
 - Python distribution docs mention private PyPI-compatible options;
 - required service boundaries exist in the proto IDL;
+- OpenAPI is configured as generated from Buf/protobuf only;
 - proto messages use JSON contract envelopes instead of copied persisted record
   fields.

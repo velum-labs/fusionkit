@@ -15,6 +15,14 @@ PROTOCOL_PACKAGE_JSON = CONTRACT_ROOT / "protocol-package.json"
 PROTO_FILE = CONTRACT_ROOT / "proto" / "velum" / "model_fusion" / "v1" / "protocol.proto"
 BUF_YAML = CONTRACT_ROOT / "buf.yaml"
 BUF_GEN_YAML = CONTRACT_ROOT / "buf.gen.yaml"
+HAND_AUTHORED_OPENAPI_PATTERNS = (
+    "openapi.yaml",
+    "openapi.yml",
+    "openapi.json",
+    "openapi/*.yaml",
+    "openapi/*.yml",
+    "openapi/*.json",
+)
 
 REQUIRED_SERVICES = (
     "HarnessExecutorService",
@@ -60,6 +68,7 @@ def validate_protocol_package(contract_root: Path = CONTRACT_ROOT) -> ProtocolPa
     _require_file(contract_root / "buf.gen.yaml")
     _validate_package_json(package_json)
     _validate_protocol_package_json(protocol_package, contract_root)
+    _validate_no_hand_authored_openapi(contract_root)
     services = _declared_services(proto_text)
     messages = _declared_messages(proto_text)
     _validate_proto_surface(proto_text, services, messages)
@@ -129,8 +138,15 @@ def _validate_protocol_package_json(
         raise ValueError("protocol-package.json package_name is incorrect")
     if protocol_package.get("json_schema_format") != "persisted-record-audit-format":
         raise ValueError("protocol-package.json must keep JSON Schema as audit format")
-    if protocol_package.get("protobuf_format") != "service-transport-envelope-format":
-        raise ValueError("protocol-package.json must keep protobuf as transport format")
+    if protocol_package.get("protobuf_format") != "service-sdk-boundary-source-of-truth":
+        raise ValueError("protocol-package.json must make protobuf the service/SDK source")
+    openapi_config = protocol_package.get("openapi")
+    if not isinstance(openapi_config, dict):
+        raise ValueError("protocol-package.json must include OpenAPI generation config")
+    if openapi_config.get("source") != "generated_from_buf_protobuf":
+        raise ValueError("OpenAPI must be generated from Buf/protobuf")
+    if openapi_config.get("hand_authored_allowed") is not False:
+        raise ValueError("Hand-authored OpenAPI must remain disabled")
     python_config = protocol_package.get("python")
     if not isinstance(python_config, dict):
         raise ValueError("protocol-package.json must include Python package config")
@@ -140,6 +156,17 @@ def _validate_protocol_package_json(
     for index in PRIVATE_PYTHON_INDEXES:
         if index not in indexes:
             raise ValueError(f"Python package config must include {index}")
+
+
+def _validate_no_hand_authored_openapi(contract_root: Path) -> None:
+    matches = []
+    for pattern in HAND_AUTHORED_OPENAPI_PATTERNS:
+        matches.extend(str(path) for path in contract_root.glob(pattern))
+    if matches:
+        raise ValueError(
+            "OpenAPI must be generated from protobuf, not hand-authored: "
+            + ", ".join(sorted(matches))
+        )
 
 
 def _validate_proto_surface(
