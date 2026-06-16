@@ -40,6 +40,9 @@ Releases or pin `uv` git dependencies by commit. GitHub Packages is not enough f
 private Python package consumption. Python repos should consume generated protocol
 bindings from that package path rather than copying Pydantic or JSON Schema shapes.
 
+Release automation and required secrets are documented in
+`docs/model-fusion-protocol-release.md`.
+
 ## CI drift checks
 
 CI should run:

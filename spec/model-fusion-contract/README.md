@@ -131,3 +131,11 @@ The protocol package validator checks:
 - required HTTP/service boundaries exist in OpenAPI 3.1;
 - OpenAPI references JSON Schema records rather than copying durable record fields;
 - protobuf/Buf is not part of the required v1 protocol path.
+
+## Release
+
+Protocol releases use `.github/workflows/model-fusion-protocol-release.yml` and tags
+matching `model-fusion-protocol-v*`. The workflow publishes the npm protocol package
+to GitHub Packages and builds the Python package for private PyPI-compatible upload
+or GitHub Release artifact fallback. See
+`docs/model-fusion-protocol-release.md` for required secrets and exact behavior.

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import tomllib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -12,6 +13,8 @@ CONTRACT_ROOT = Path(__file__).resolve().parents[1] / "spec" / "model-fusion-con
 PACKAGE_JSON = CONTRACT_ROOT / "package.json"
 PROTOCOL_PACKAGE_JSON = CONTRACT_ROOT / "protocol-package.json"
 OPENAPI_FILE = CONTRACT_ROOT / "openapi" / "model-fusion.v1.openapi.json"
+PYTHON_PACKAGE = CONTRACT_ROOT / "python" / "pyproject.toml"
+PYTHON_BUILD_SCRIPT = Path(__file__).resolve().parent / "build_protocol_python_package.py"
 
 REQUIRED_SERVICE_PATHS = {
     "HarnessExecutorService": ("/v1/harness/execute-coding-task",),
@@ -37,6 +40,8 @@ PRIVATE_PYTHON_INDEXES = ("Cloudsmith", "AWS CodeArtifact", "Gemfury")
 class ProtocolPackageSummary:
     schema_bundle_hash: str
     package_name: str
+    package_version: str
+    python_package_name: str
     services: tuple[str, ...]
     paths: tuple[str, ...]
 
@@ -45,15 +50,20 @@ def validate_protocol_package(contract_root: Path = CONTRACT_ROOT) -> ProtocolPa
     package_json = _load_json(contract_root / "package.json")
     protocol_package = _load_json(contract_root / "protocol-package.json")
     openapi = _load_json(contract_root / "openapi" / "model-fusion.v1.openapi.json")
+    python_package = _load_toml(contract_root / "python" / "pyproject.toml")
 
     _validate_package_json(package_json)
     _validate_protocol_package_json(protocol_package, contract_root)
-    services, paths = _validate_openapi(openapi, contract_root)
+    _validate_python_package(python_package, protocol_package, package_json, openapi)
+    services, paths = _validate_openapi(openapi, contract_root, package_json)
     _validate_no_v1_proto_requirements(contract_root)
+    _require_file(PYTHON_BUILD_SCRIPT)
 
     return ProtocolPackageSummary(
         schema_bundle_hash=protocol_package["schema_bundle_hash"],
         package_name=package_json["name"],
+        package_version=package_json["version"],
+        python_package_name=python_package["project"]["name"],
         services=tuple(service for service in REQUIRED_SERVICE_PATHS if service in services),
         paths=tuple(
             path
@@ -73,6 +83,8 @@ def main() -> None:
             {
                 "schema_bundle_hash": summary.schema_bundle_hash,
                 "package_name": summary.package_name,
+                "package_version": summary.package_version,
+                "python_package_name": summary.python_package_name,
                 "services": list(summary.services),
                 "paths": list(summary.paths),
             },
@@ -89,6 +101,14 @@ def _load_json(path: Path) -> dict[str, Any]:
     return data
 
 
+def _load_toml(path: Path) -> dict[str, Any]:
+    with path.open("rb") as handle:
+        data = tomllib.load(handle)
+    if not isinstance(data, dict):
+        raise ValueError(f"{path}: expected a TOML object")
+    return data
+
+
 def _require_file(path: Path) -> None:
     if not path.exists():
         raise ValueError(f"Missing protocol package file: {path}")
@@ -97,6 +117,8 @@ def _require_file(path: Path) -> None:
 def _validate_package_json(package_json: dict[str, Any]) -> None:
     if package_json.get("name") != "@velum/model-fusion-protocol":
         raise ValueError("package.json must publish @velum/model-fusion-protocol")
+    if package_json.get("version") != "0.1.0":
+        raise ValueError("package.json version must match protocol package version")
     publish_config = package_json.get("publishConfig")
     if not isinstance(publish_config, dict):
         raise ValueError("package.json must include publishConfig")
@@ -128,6 +150,8 @@ def _validate_protocol_package_json(
         raise ValueError("protocol-package.json schema_bundle_hash is out of date")
     if protocol_package.get("package_name") != "@velum/model-fusion-protocol":
         raise ValueError("protocol-package.json package_name is incorrect")
+    if protocol_package.get("version") != "0.1.0":
+        raise ValueError("protocol-package.json version is incorrect")
     if protocol_package.get("json_schema_format") != "persisted-record-audit-format":
         raise ValueError("protocol-package.json must keep JSON Schema as audit format")
     if protocol_package.get("v1_service_source_of_truth") != "openapi-3.1-http-json":
@@ -157,15 +181,52 @@ def _validate_protocol_package_json(
             raise ValueError(f"Python package config must include {index}")
 
 
+def _validate_python_package(
+    python_package: dict[str, Any],
+    protocol_package: dict[str, Any],
+    package_json: dict[str, Any],
+    openapi: dict[str, Any],
+) -> None:
+    project = python_package.get("project")
+    if not isinstance(project, dict):
+        raise ValueError("Python protocol package must include [project]")
+    python_config = protocol_package.get("python")
+    if not isinstance(python_config, dict):
+        raise ValueError("protocol-package.json must include Python package config")
+    if project.get("name") != python_config.get("package"):
+        raise ValueError("Python package name must match protocol-package.json")
+    expected_version = package_json.get("version")
+    if project.get("version") != expected_version:
+        raise ValueError("Python package version must match npm package version")
+    info = openapi.get("info")
+    if not isinstance(info, dict) or info.get("version") != expected_version:
+        raise ValueError("OpenAPI info.version must match package version")
+    configured_assets = (
+        python_package.get("tool", {})
+        .get("velum", {})
+        .get("protocol", {})
+        .get("assets", {})
+        .get("include")
+    )
+    if not isinstance(configured_assets, list):
+        raise ValueError("Python package must declare staged protocol assets")
+    for required_asset in ("schema", "openapi", "protocol-package.json"):
+        if required_asset not in configured_assets:
+            raise ValueError(f"Python package must include staged asset {required_asset}")
+
+
 def _validate_openapi(
     openapi: dict[str, Any],
     contract_root: Path,
+    package_json: dict[str, Any],
 ) -> tuple[set[str], set[str]]:
     if openapi.get("openapi") != "3.1.0":
         raise ValueError("OpenAPI contract must use version 3.1.0")
     info = openapi.get("info")
     if not isinstance(info, dict):
         raise ValueError("OpenAPI contract must include info")
+    if info.get("version") != package_json.get("version"):
+        raise ValueError("OpenAPI info.version must match package version")
     expected_hash = compute_schema_bundle_hash(contract_root / "schema")
     if info.get("x-schema-bundle-hash") != expected_hash:
         raise ValueError("OpenAPI schema bundle hash is out of date")
