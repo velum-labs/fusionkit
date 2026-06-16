@@ -2,20 +2,23 @@
   "package_name": "@velum/model-fusion-protocol",
   "schema_bundle_hash": "sha256:75792f89c091b6ab4fd317a15fb03fd73438563dceff5ccf9f5d7c752dbf35f3",
   "json_schema_format": "persisted-record-audit-format",
-  "protobuf_format": "service-sdk-boundary-source-of-truth",
-  "buf_module": "buf.build/velum/model-fusion-protocol",
+  "v1_service_source_of_truth": "openapi-3.1-http-json",
   "openapi": {
-    "source": "generated_from_buf_protobuf",
-    "hand_authored_allowed": false,
-    "committed_artifact": false
+    "source": "v1_http_json_source_of_truth",
+    "path": "openapi/model-fusion.v1.openapi.json",
+    "version": "3.1.0"
+  },
+  "protobuf": {
+    "status": "reserved_future_internal_streaming_connect_grpc",
+    "required_for_v1": false
   },
   "typescript": {
     "package": "@velum/model-fusion-protocol",
     "registry": "https://npm.pkg.github.com",
     "contents": [
       "JSON Schema bundle",
-      "Buf/protobuf service envelopes",
-      "generated TypeScript bindings when CI generation is enabled"
+      "OpenAPI 3.1 HTTP contract",
+      "generated TypeScript SDK/types/validators when CI generation is enabled"
     ]
   },
   "python": {

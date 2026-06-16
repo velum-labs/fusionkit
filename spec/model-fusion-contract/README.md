@@ -3,16 +3,16 @@
 This directory is the MF-00 contract and IDL seed for model-fusion records.
 FusionKit is the origin for now; do not create or consume a separate protocol repo
 unless the governance and release process justify it. JSON Schema remains the
-persisted record and audit source of truth. Buf/protobuf is the source of truth for
-service and SDK boundaries. OpenAPI, when needed, must be generated from the
-protobuf IDL instead of hand-authored.
+persisted record and audit source of truth. OpenAPI 3.1 is the v1 HTTP/service API
+source of truth. Protobuf/Buf is reserved for later internal streaming, Connect, or
+gRPC boundaries and is not required for v1.
 
 ## Layout
 
 - `schema/*.schema.json` contains the record schemas.
 - `schema/common.schema.json` contains shared metadata, enums, hashes, and reusable
   shapes.
-- `proto/` contains Buf/protobuf service envelopes for runtime boundaries.
+- `openapi/model-fusion.v1.openapi.json` contains the v1 HTTP/JSON service contract.
 - `package.json` and `protocol-package.json` describe the intended generated package
   targets and pin the schema bundle hash.
 - `fixture/<schema>/minimal.json` contains the smallest valid payload for binding
@@ -128,7 +128,6 @@ The protocol package validator checks:
 - `protocol-package.json` carries the current schema bundle hash;
 - npm metadata targets `@velum/model-fusion-protocol` on GitHub Packages;
 - Python distribution docs mention private PyPI-compatible options;
-- required service boundaries exist in the proto IDL;
-- OpenAPI is configured as generated from Buf/protobuf only;
-- proto messages use JSON contract envelopes instead of copied persisted record
-  fields.
+- required HTTP/service boundaries exist in OpenAPI 3.1;
+- OpenAPI references JSON Schema records rather than copying durable record fields;
+- protobuf/Buf is not part of the required v1 protocol path.

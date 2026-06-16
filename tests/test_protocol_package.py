@@ -21,10 +21,12 @@ def test_protocol_package_metadata_and_idl_are_drift_checked() -> None:
         "MlxProviderService",
         "BenchmarkJoinService",
     )
-    assert summary.messages == (
-        "JsonContractRecord",
-        "BenchmarkTaskEnvelope",
-        "BenchmarkExecutionEnvelope",
+    assert summary.paths == (
+        "/v1/harness/execute-coding-task",
+        "/v1/cursor/normalize-run",
+        "/v1/mlx/model-endpoints/{endpoint_id}",
+        "/v1/mlx/model-calls",
+        "/v1/benchmarks/join-execution",
     )
 
 

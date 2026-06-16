@@ -1,8 +1,0 @@
-version: v1
-name: buf.build/velum/model-fusion-protocol
-lint:
-  use:
-    - DEFAULT
-breaking:
-  use:
-    - FILE

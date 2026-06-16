@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -12,41 +11,26 @@ from validate_contract_fixtures import compute_schema_bundle_hash
 CONTRACT_ROOT = Path(__file__).resolve().parents[1] / "spec" / "model-fusion-contract"
 PACKAGE_JSON = CONTRACT_ROOT / "package.json"
 PROTOCOL_PACKAGE_JSON = CONTRACT_ROOT / "protocol-package.json"
-PROTO_FILE = CONTRACT_ROOT / "proto" / "velum" / "model_fusion" / "v1" / "protocol.proto"
-BUF_YAML = CONTRACT_ROOT / "buf.yaml"
-BUF_GEN_YAML = CONTRACT_ROOT / "buf.gen.yaml"
-HAND_AUTHORED_OPENAPI_PATTERNS = (
-    "openapi.yaml",
-    "openapi.yml",
-    "openapi.json",
-    "openapi/*.yaml",
-    "openapi/*.yml",
-    "openapi/*.json",
-)
+OPENAPI_FILE = CONTRACT_ROOT / "openapi" / "model-fusion.v1.openapi.json"
 
-REQUIRED_SERVICES = (
-    "HarnessExecutorService",
-    "CursorHarnessService",
-    "MlxProviderService",
-    "BenchmarkJoinService",
-)
-REQUIRED_MESSAGES = (
-    "JsonContractRecord",
-    "BenchmarkTaskEnvelope",
-    "BenchmarkExecutionEnvelope",
+REQUIRED_SERVICE_PATHS = {
+    "HarnessExecutorService": ("/v1/harness/execute-coding-task",),
+    "CursorHarnessService": ("/v1/cursor/normalize-run",),
+    "MlxProviderService": (
+        "/v1/mlx/model-endpoints/{endpoint_id}",
+        "/v1/mlx/model-calls",
+    ),
+    "BenchmarkJoinService": ("/v1/benchmarks/join-execution",),
+}
+REQUIRED_SCHEMA_REFS = (
+    "../schema/benchmark-task-record.v1.schema.json",
+    "../schema/cursor-run-result.v1.schema.json",
+    "../schema/harness-candidate-record.v1.schema.json",
+    "../schema/harness-run-result.v1.schema.json",
+    "../schema/model-call-record.v1.schema.json",
+    "../schema/model-endpoint.v1.schema.json",
 )
 PRIVATE_PYTHON_INDEXES = ("Cloudsmith", "AWS CodeArtifact", "Gemfury")
-FORBIDDEN_COPIED_RECORD_FIELD_DECLARATIONS = (
-    "artifact_id",
-    "candidate_id",
-    "receipt_id",
-    "result_id",
-    "run_id",
-    "call_id",
-    "request_hash",
-    "prompt_hash",
-    "setup_hash",
-)
 
 
 @dataclass(frozen=True)
@@ -54,30 +38,29 @@ class ProtocolPackageSummary:
     schema_bundle_hash: str
     package_name: str
     services: tuple[str, ...]
-    messages: tuple[str, ...]
+    paths: tuple[str, ...]
 
 
 def validate_protocol_package(contract_root: Path = CONTRACT_ROOT) -> ProtocolPackageSummary:
     package_json = _load_json(contract_root / "package.json")
     protocol_package = _load_json(contract_root / "protocol-package.json")
-    proto_text = (contract_root / PROTO_FILE.relative_to(CONTRACT_ROOT)).read_text(
-        encoding="utf-8"
-    )
+    openapi = _load_json(contract_root / "openapi" / "model-fusion.v1.openapi.json")
 
-    _require_file(contract_root / "buf.yaml")
-    _require_file(contract_root / "buf.gen.yaml")
     _validate_package_json(package_json)
     _validate_protocol_package_json(protocol_package, contract_root)
-    _validate_no_hand_authored_openapi(contract_root)
-    services = _declared_services(proto_text)
-    messages = _declared_messages(proto_text)
-    _validate_proto_surface(proto_text, services, messages)
+    services, paths = _validate_openapi(openapi, contract_root)
+    _validate_no_v1_proto_requirements(contract_root)
 
     return ProtocolPackageSummary(
         schema_bundle_hash=protocol_package["schema_bundle_hash"],
         package_name=package_json["name"],
-        services=tuple(service for service in REQUIRED_SERVICES if service in services),
-        messages=tuple(message for message in REQUIRED_MESSAGES if message in messages),
+        services=tuple(service for service in REQUIRED_SERVICE_PATHS if service in services),
+        paths=tuple(
+            path
+            for service_paths in REQUIRED_SERVICE_PATHS.values()
+            for path in service_paths
+            if path in paths
+        ),
     )
 
 
@@ -91,7 +74,7 @@ def main() -> None:
                 "schema_bundle_hash": summary.schema_bundle_hash,
                 "package_name": summary.package_name,
                 "services": list(summary.services),
-                "messages": list(summary.messages),
+                "paths": list(summary.paths),
             },
             sort_keys=True,
         )
@@ -122,9 +105,18 @@ def _validate_package_json(package_json: dict[str, Any]) -> None:
     files = package_json.get("files")
     if not isinstance(files, list):
         raise ValueError("package.json must include a files list")
-    for required_file in ("schema", "proto", "buf.yaml", "buf.gen.yaml"):
+    for required_file in ("schema", "openapi", "protocol-package.json"):
         if required_file not in files:
             raise ValueError(f"package.json files must include {required_file}")
+    scripts = package_json.get("scripts")
+    if not isinstance(scripts, dict):
+        raise ValueError("package.json must include generation/validation scripts")
+    if "validate:contracts" not in scripts:
+        raise ValueError("package.json must expose validate:contracts")
+    if "generate:typescript" not in scripts:
+        raise ValueError("package.json must expose generate:typescript")
+    if "generate:python" not in scripts:
+        raise ValueError("package.json must expose generate:python")
 
 
 def _validate_protocol_package_json(
@@ -138,15 +130,22 @@ def _validate_protocol_package_json(
         raise ValueError("protocol-package.json package_name is incorrect")
     if protocol_package.get("json_schema_format") != "persisted-record-audit-format":
         raise ValueError("protocol-package.json must keep JSON Schema as audit format")
-    if protocol_package.get("protobuf_format") != "service-sdk-boundary-source-of-truth":
-        raise ValueError("protocol-package.json must make protobuf the service/SDK source")
+    if protocol_package.get("v1_service_source_of_truth") != "openapi-3.1-http-json":
+        raise ValueError("protocol-package.json must make OpenAPI 3.1 the v1 service source")
     openapi_config = protocol_package.get("openapi")
     if not isinstance(openapi_config, dict):
-        raise ValueError("protocol-package.json must include OpenAPI generation config")
-    if openapi_config.get("source") != "generated_from_buf_protobuf":
-        raise ValueError("OpenAPI must be generated from Buf/protobuf")
-    if openapi_config.get("hand_authored_allowed") is not False:
-        raise ValueError("Hand-authored OpenAPI must remain disabled")
+        raise ValueError("protocol-package.json must include OpenAPI config")
+    if openapi_config.get("source") != "v1_http_json_source_of_truth":
+        raise ValueError("OpenAPI must be the v1 HTTP/JSON source of truth")
+    if openapi_config.get("path") != "openapi/model-fusion.v1.openapi.json":
+        raise ValueError("OpenAPI package path is incorrect")
+    if openapi_config.get("version") != "3.1.0":
+        raise ValueError("OpenAPI package config must target 3.1.0")
+    protobuf_config = protocol_package.get("protobuf")
+    if not isinstance(protobuf_config, dict):
+        raise ValueError("protocol-package.json must include protobuf future-use config")
+    if protobuf_config.get("required_for_v1") is not False:
+        raise ValueError("protobuf must not be required for the v1 service path")
     python_config = protocol_package.get("python")
     if not isinstance(python_config, dict):
         raise ValueError("protocol-package.json must include Python package config")
@@ -158,44 +157,56 @@ def _validate_protocol_package_json(
             raise ValueError(f"Python package config must include {index}")
 
 
-def _validate_no_hand_authored_openapi(contract_root: Path) -> None:
-    matches = []
-    for pattern in HAND_AUTHORED_OPENAPI_PATTERNS:
-        matches.extend(str(path) for path in contract_root.glob(pattern))
-    if matches:
+def _validate_openapi(
+    openapi: dict[str, Any],
+    contract_root: Path,
+) -> tuple[set[str], set[str]]:
+    if openapi.get("openapi") != "3.1.0":
+        raise ValueError("OpenAPI contract must use version 3.1.0")
+    info = openapi.get("info")
+    if not isinstance(info, dict):
+        raise ValueError("OpenAPI contract must include info")
+    expected_hash = compute_schema_bundle_hash(contract_root / "schema")
+    if info.get("x-schema-bundle-hash") != expected_hash:
+        raise ValueError("OpenAPI schema bundle hash is out of date")
+    paths = openapi.get("paths")
+    if not isinstance(paths, dict):
+        raise ValueError("OpenAPI contract must include paths")
+    services = set()
+    for service_tag, service_paths in REQUIRED_SERVICE_PATHS.items():
+        for path in service_paths:
+            path_item = paths.get(path)
+            if not isinstance(path_item, dict):
+                raise ValueError(f"OpenAPI contract missing path {path}")
+            operations = [
+                operation
+                for operation in path_item.values()
+                if isinstance(operation, dict) and "operationId" in operation
+            ]
+            if not operations:
+                raise ValueError(f"OpenAPI path {path} must declare an operation")
+            if not any(service_tag in operation.get("tags", []) for operation in operations):
+                raise ValueError(f"OpenAPI path {path} must use tag {service_tag}")
+            services.add(service_tag)
+    encoded = json.dumps(openapi, sort_keys=True)
+    for schema_ref in REQUIRED_SCHEMA_REFS:
+        if schema_ref not in encoded:
+            raise ValueError(f"OpenAPI contract must reference {schema_ref}")
+    return services, set(paths)
+
+
+def _validate_no_v1_proto_requirements(contract_root: Path) -> None:
+    forbidden_paths = [
+        contract_root / "buf.yaml",
+        contract_root / "buf.gen.yaml",
+        contract_root / "proto",
+    ]
+    existing = [str(path) for path in forbidden_paths if path.exists()]
+    if existing:
         raise ValueError(
-            "OpenAPI must be generated from protobuf, not hand-authored: "
-            + ", ".join(sorted(matches))
+            "protobuf/Buf must not be part of the required v1 protocol path: "
+            + ", ".join(existing)
         )
-
-
-def _validate_proto_surface(
-    proto_text: str,
-    services: set[str],
-    messages: set[str],
-) -> None:
-    missing_services = sorted(set(REQUIRED_SERVICES) - services)
-    if missing_services:
-        raise ValueError(f"Missing required services: {missing_services}")
-    missing_messages = sorted(set(REQUIRED_MESSAGES) - messages)
-    if missing_messages:
-        raise ValueError(f"Missing required messages: {missing_messages}")
-    if "repeated JsonContractRecord records" not in proto_text:
-        raise ValueError("Benchmark execution envelopes must carry JSON contract records")
-    for field_name in FORBIDDEN_COPIED_RECORD_FIELD_DECLARATIONS:
-        pattern = re.compile(rf"^\s+\w+\s+{re.escape(field_name)}\s*=", re.MULTILINE)
-        if pattern.search(proto_text):
-            raise ValueError(
-                f"Proto IDL must not copy persisted JSON record field {field_name!r}"
-            )
-
-
-def _declared_services(proto_text: str) -> set[str]:
-    return set(re.findall(r"^service\s+(\w+)\s+\{", proto_text, flags=re.MULTILINE))
-
-
-def _declared_messages(proto_text: str) -> set[str]:
-    return set(re.findall(r"^message\s+(\w+)\s+\{", proto_text, flags=re.MULTILINE))
 
 
 if __name__ == "__main__":

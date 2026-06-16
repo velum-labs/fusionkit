@@ -1,13 +1,16 @@
 {
   "name": "@velum/model-fusion-protocol",
   "version": "0.1.0",
-  "description": "Model fusion JSON Schema contracts and protobuf service envelopes.",
+  "description": "Model fusion JSON Schema records and OpenAPI 3.1 HTTP contracts.",
   "private": false,
+  "scripts": {
+    "validate:contracts": "python ../../scripts/validate_contract_fixtures.py && python ../../scripts/validate_protocol_package.py",
+    "generate:typescript": "openapi-typescript openapi/model-fusion.v1.openapi.json -o gen/typescript/index.d.ts",
+    "generate:python": "openapi-python-client generate --path openapi/model-fusion.v1.openapi.json --output-path gen/python"
+  },
   "files": [
     "schema",
-    "proto",
-    "buf.yaml",
-    "buf.gen.yaml",
+    "openapi",
     "protocol-package.json",
     "README.md"
   ],
