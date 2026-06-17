@@ -25,6 +25,10 @@ uv run ruff check .
 
 - [Model fusion learnings](docs/model-fusion-learnings.md): durable architecture notes
   from the contract, native run, tool, provider, and benchmark implementation work.
+- [Local MLX panel demo](docs/local-mlx-panel-demo.md): reproducible Apple Silicon proof
+  for three real local MLX models through `/v1/fusion/runs`.
+- [HandoffKit fusion bench integration](docs/handoffkit-fusion-bench.md): record-contract
+  seam for governed coding harnesses.
 
 ## Example
 
