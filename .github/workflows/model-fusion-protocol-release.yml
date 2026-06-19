@@ -13,7 +13,7 @@ on:
 
 permissions:
   contents: write
-  packages: write
+  id-token: write
 
 env:
   CANONICAL_REPOSITORY: velum-labs/fusionkit
@@ -41,7 +41,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          registry-url: "https://npm.pkg.github.com"
+          registry-url: "https://registry.npmjs.org"
           scope: "@velum-labs"
 
       - name: Install workspace dependencies
@@ -101,14 +101,19 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
-          registry-url: "https://npm.pkg.github.com"
+          registry-url: "https://registry.npmjs.org"
           scope: "@velum-labs"
 
-      - name: Publish to private GitHub Packages
+      # npm publish --provenance performs the OIDC exchange via the npm CLI,
+      # which must be >= 11.5.1 for trusted publishing.
+      - name: Update npm for OIDC trusted publishing
+        run: npm install -g npm@latest
+
+      - name: Publish to public npm
         working-directory: ${{ env.CONTRACT_DIR }}
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm publish --access restricted
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public --provenance
 
   publish-python:
     name: Publish Python protocol package
