@@ -77,10 +77,13 @@ jobs:
         env:
           UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
         run: |
+          # --check-url makes re-runs idempotent: uv skips files already on the
+          # index and only uploads what's missing (e.g. after a partial publish
+          # that tripped PyPI's new-project rate limit).
           if [ -n "${UV_PUBLISH_TOKEN}" ]; then
             echo "Publishing to PyPI with an API token (bootstrap)"
-            uv publish
+            uv publish --check-url https://pypi.org/simple/
           else
             echo "Publishing to PyPI via OIDC trusted publishing"
-            uv publish --trusted-publishing always
+            uv publish --trusted-publishing always --check-url https://pypi.org/simple/
           fi
