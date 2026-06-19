@@ -66,8 +66,21 @@ jobs:
       - name: Validate distribution metadata
         run: uv run --with twine python -m twine check dist/*
 
-      - name: Publish to PyPI (Trusted Publishing)
+      - name: Publish to PyPI
         # Real publish only on a published GitHub Release; workflow_dispatch is
-        # build/validate only.
+        # build/validate only. Uses an API token when PYPI_TOKEN is set (the
+        # one-time bootstrap, before Trusted Publishers can be attached to
+        # not-yet-existing projects); otherwise authenticates via OIDC trusted
+        # publishing. Remove the PYPI_TOKEN secret after bootstrap to go
+        # token-free.
         if: github.event_name == 'release'
-        run: uv publish --trusted-publishing always
+        env:
+          UV_PUBLISH_TOKEN: ${{ secrets.PYPI_TOKEN }}
+        run: |
+          if [ -n "${UV_PUBLISH_TOKEN}" ]; then
+            echo "Publishing to PyPI with an API token (bootstrap)"
+            uv publish
+          else
+            echo "Publishing to PyPI via OIDC trusted publishing"
+            uv publish --trusted-publishing always
+          fi
