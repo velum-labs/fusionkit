@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: lint, type-check, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Lockfile is current
+        run: uv lock --check
+
+      - name: Sync workspace
+        run: uv sync --all-packages
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Type-check
+        run: uv run pyright
+
+      - name: Test
+        run: uv run pytest
+
+      - name: Build distributions (PyPI metadata smoke)
+        run: |
+          rm -rf dist
+          uv build --all-packages
+          uv run --with twine python -m twine check dist/*

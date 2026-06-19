@@ -5,12 +5,28 @@ It is designed to orchestrate local MLX/OpenAI-compatible model servers, generat
 multiple candidate answers, rank and synthesize them, and evaluate whether the
 resulting system is Pareto-front for quality, latency, memory, and energy.
 
+## Install
+
+The CLI is published to PyPI as the `fusionkit` distribution. Run it without a
+checkout via `uvx` (this is how HandoffKit's `fusionkit codex` boots the
+synthesizer), or install it directly:
+
+```bash
+uvx fusionkit serve --config configs/models.example.yaml   # no install needed
+# or
+pip install fusionkit && fusionkit serve --config configs/models.example.yaml
+```
+
+MLX support is an Apple-Silicon-only extra (`mlx-lm`), so non-macOS installs
+succeed without it. Install the local-model helpers with `pip install
+fusionkit[mlx]` on Apple Silicon.
+
 ## Packages
 
 - `fusionkit-core`: config, local model clients, panel generation, fusion, routing, metrics
-- `fusionkit-server`: FastAPI OpenAI-compatible server
+- `fusionkit-server`: FastAPI OpenAI-compatible server (+ single-model OpenAI shim)
 - `fusionkit-evals`: benchmark schemas, scoring, Pareto analysis
-- `fusionkit-cli`: `fusionkit serve`, `fusionkit eval`, `fusionkit pareto`
+- `fusionkit` (`packages/fusionkit-cli`): `fusionkit serve`, `serve-endpoint`, `eval`, `pareto`
 - `fusionkit-mlx`: optional MLX helper utilities
 
 ## Development

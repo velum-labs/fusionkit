@@ -14,7 +14,7 @@ members = ["packages/*"]
 fusionkit-core = { workspace = true }
 fusionkit-server = { workspace = true }
 fusionkit-evals = { workspace = true }
-fusionkit-cli = { workspace = true }
+fusionkit = { workspace = true }
 fusionkit-mlx = { workspace = true }
 
 [dependency-groups]
