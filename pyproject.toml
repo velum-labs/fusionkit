@@ -40,3 +40,11 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 addopts = "-q"
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["packages"]
+
+[tool.coverage.report]
+# Gate: keep overall line coverage at or above this floor (currently ~83%).
+fail_under = 80
+show_missing = true

@@ -39,8 +39,10 @@ jobs:
       - name: Type-check
         run: uv run pyright
 
-      - name: Test
-        run: uv run pytest
+      - name: Test (with coverage gate)
+        run: |
+          uv run coverage run -m pytest
+          uv run coverage report
 
       - name: Build distributions (PyPI metadata smoke)
         run: |
