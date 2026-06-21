@@ -477,7 +477,7 @@ wheels = [
 
 [[package]]
 name = "fusionkit"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "packages/fusionkit-cli" }
 dependencies = [
     { name = "fusionkit-core" },
@@ -498,7 +498,7 @@ requires-dist = [
 
 [[package]]
 name = "fusionkit-core"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "packages/fusionkit-core" }
 dependencies = [
     { name = "anthropic" },
@@ -519,7 +519,7 @@ requires-dist = [
 
 [[package]]
 name = "fusionkit-evals"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "packages/fusionkit-evals" }
 dependencies = [
     { name = "fusionkit-core" },
@@ -541,7 +541,7 @@ provides-extras = ["evals"]
 
 [[package]]
 name = "fusionkit-mlx"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "packages/fusionkit-mlx" }
 dependencies = [
     { name = "fusionkit-core" },
@@ -561,7 +561,7 @@ provides-extras = ["mlx"]
 
 [[package]]
 name = "fusionkit-server"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "packages/fusionkit-server" }
 dependencies = [
     { name = "fastapi" },
