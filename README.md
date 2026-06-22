@@ -21,6 +21,36 @@ MLX support is an Apple-Silicon-only extra (`mlx-lm`), so non-macOS installs
 succeed without it. Install the local-model helpers with `pip install
 fusionkit[mlx]` on Apple Silicon.
 
+## Getting started
+
+`fusionkit init` detects what you already have - logged-in Claude Code / Codex
+subscriptions and `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` - and
+scaffolds a config for you:
+
+```bash
+fusionkit init            # interactive; writes ./fusionkit.yaml
+fusionkit serve           # auto-discovers ./fusionkit.yaml (no --config needed)
+```
+
+Subscription endpoints reuse your existing CLI logins read-only (FusionKit never
+refreshes or stores tokens; run `claude` or `codex login` to refresh). Use
+`--yes` to accept all detected sources non-interactively, or `--global` to write
+`~/.config/fusionkit/models.yaml`.
+
+Inspect and switch authentication at any time:
+
+```bash
+fusionkit auth status                          # logins, API keys, per-endpoint auth mode
+fusionkit auth switch claude --mode claude-code  # use the Claude subscription for an endpoint
+fusionkit auth switch claude --mode api_key --api-key-env ANTHROPIC_API_KEY
+fusionkit auth set-default codex
+```
+
+Config discovery order: `$FUSIONKIT_CONFIG` -> `./fusionkit.yaml` ->
+`./.fusionkit/models.yaml` -> `~/.config/fusionkit/models.yaml`. Local MLX and
+other models can be added by editing the config directly (see
+`configs/models.example.yaml`).
+
 ## Packages
 
 - `fusionkit-core`: config, local model clients, panel generation, fusion, routing, metrics
